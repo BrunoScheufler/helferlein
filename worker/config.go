@@ -21,7 +21,10 @@ type Repository struct {
 	DisableAuth bool `yaml:"disableAuth"`
 
 	// Branches to check out and watch
-	Branches []string
+	Branches map[string]struct {
+		// Commands to run in sequence
+		Steps []string `yaml:"steps"`
+	} `yaml:"branches"`
 }
 
 type Config struct {
