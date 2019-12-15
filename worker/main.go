@@ -15,9 +15,9 @@ func Start(config *Config) error {
 
 	ctx := context.Background()
 
+	// Create clone directory if it doesn't exist
 	_, err := os.Stat(config.CloneDirectory)
 	if err != nil {
-		// Create directory if it doesn't exist
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(config.CloneDirectory, os.ModePerm)
 			if err != nil {

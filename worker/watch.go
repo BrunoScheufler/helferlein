@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Watch a list of repositories
 func watchRepositories(ctx context.Context, config *Config, repositories []*git.Repository) error {
 	// Parse fetch duration
 	fetchInterval, err := time.ParseDuration(config.FetchInterval)
@@ -18,6 +19,7 @@ func watchRepositories(ctx context.Context, config *Config, repositories []*git.
 		return fmt.Errorf("could not parse fetch interval %q: %w", config.FetchInterval, err)
 	}
 
+	// Create cancellable context to prevent running operations when a shutdown is in progress
 	cancellableCtx, cancel := context.WithCancel(ctx)
 	errors := make(chan error, 0)
 	done := make(chan int, 0)
@@ -45,8 +47,10 @@ func watchRepositories(ctx context.Context, config *Config, repositories []*git.
 		}
 	}()
 
+	// Run watcher for every repository
 	for i := range repositories {
 		go func(currentGitRepository *git.Repository, currentRepository Repository) {
+			// Watch and send errors to channel
 			err := watchRepository(cancellableCtx, watchRepositoryOptions{
 				config:        config,
 				repoConfig:    currentRepository,
@@ -74,6 +78,7 @@ type watchRepositoryOptions struct {
 	fetchInterval time.Duration
 }
 
+// Watch a repository
 func watchRepository(ctx context.Context, options watchRepositoryOptions) error {
 	// Retrieve git credentials from configuration
 	gitCredentials, err := options.config.GetAuthCredentials()

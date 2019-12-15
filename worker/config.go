@@ -72,15 +72,19 @@ func (c *Config) Load(configFilePath string) error {
 	return c.validateAndTransform()
 }
 
+// Set default values and handle "required value x missing" errors
 func (c *Config) setDefaults() error {
+	// Clone Directory value is required
 	if c.CloneDirectory == "" {
 		return fmt.Errorf("missing clone directory in configuration")
 	}
 
+	// Fetch interval value is required
 	if c.FetchInterval == "" {
 		return fmt.Errorf("missing fetch interval in configuration")
 	}
 
+	// When there's no access token and no user set, handle access token defaults
 	if c.Auth.AccessToken == "" && c.Auth.User == "" {
 		// Try to use environment-based access token
 		envAccessToken := os.Getenv("HELFERLEIN_GIT_AUTH_ACCESS_TOKEN")
@@ -91,17 +95,21 @@ func (c *Config) setDefaults() error {
 		c.Auth.AccessToken = envAccessToken
 	}
 
+	// If there's no access token set and either a missing user or password (or both), handle defaults
 	if (c.Auth.User == "" || c.Auth.Password == "") && c.Auth.AccessToken == "" {
+		// Replace missing user with env user
 		envUser := os.Getenv("HELFERLEIN_GIT_AUTH_USER")
 		if c.Auth.User == "" {
 			c.Auth.User = envUser
 		}
 
+		// Replace missing password with env password
 		envPassword := os.Getenv("HELFERLEIN_GIT_AUTH_PASSWORD")
 		if c.Auth.Password == "" {
 			c.Auth.Password = envPassword
 		}
 
+		// If we're still missing values, return an error
 		if c.Auth.User == "" || c.Auth.Password == "" {
 			return fmt.Errorf("missing user or password in auth configuration and environment")
 		}
@@ -110,6 +118,8 @@ func (c *Config) setDefaults() error {
 	return nil
 }
 
+// Validate set config values and transform
+// elements like file paths to meet usage requirements
 func (c *Config) validateAndTransform() error {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -124,6 +134,8 @@ func (c *Config) validateAndTransform() error {
 	return nil
 }
 
+// Retrieve git auth credentials
+// Will prefer access token over user/password combination
 func (c *Config) GetAuthCredentials() (transport.AuthMethod, error) {
 	// Accept access tokens (GitHub w/ 2FA)
 	if c.Auth.AccessToken != "" {
