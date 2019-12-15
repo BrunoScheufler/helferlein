@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
 	"os"
 	"path/filepath"
 	"time"
@@ -169,29 +168,6 @@ func watchRepository(ctx context.Context, options watchRepositoryOptions) error 
 			logrus.Debugf("Cancellable context for watching was closed, ending watcher for repository %q", options.repoConfig.Name)
 			return nil
 		}
-
-		// Fetch repository
-		err := options.gitRepository.Fetch(&git.FetchOptions{
-			RefSpecs: []config.RefSpec{
-				// Fetches all remote references to origin/<ref> -> master will be fetched to origin/master
-				"+refs/heads/*:refs/remotes/origin/*",
-			},
-			Auth:       gitCredentials,
-			RemoteName: "origin",
-		})
-		if err != nil {
-			// If no new changes exist, continue instantly
-			if err == git.NoErrAlreadyUpToDate {
-				logrus.Debugf("Nothing to fetch for repository %q", options.repoConfig.Name)
-				<-time.After(options.fetchInterval)
-				continue
-			}
-
-			// If the error should be handled, quit watching
-			return fmt.Errorf("could not fetch repository %q: %w", options.repoConfig.Name, err)
-		}
-
-		logrus.Debugf("Found new contents for repository %q", options.repoConfig.Name)
 
 		// Check for changes to branches
 		for _, branchName := range options.repoConfig.Branches {
