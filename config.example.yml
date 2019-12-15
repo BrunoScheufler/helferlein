@@ -1,0 +1,12 @@
+# Fetch for updates every 10s
+fetchInterval: "10s"
+# Clone into .helferlein directory in current working directory
+cloneDirectory: .helferlein
+repositories:
+  # Define "helferlein" repository to track
+  - name: "helferlein"
+    # Use GitHub https clone URL
+    cloneUrl: "https://github.com/BrunoScheufler/helferlein.git"
+    # Select "master" branch
+    branches:
+      - master
