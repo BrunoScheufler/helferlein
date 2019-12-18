@@ -34,6 +34,7 @@ func Start(config *Config) error {
 
 	// Clone non-existing repositories
 	for i, repository := range config.Repositories {
+		// Clone into clone directory + repository name (e.g. .helferlein/<repo>)
 		cloneTargetDir := filepath.Join(config.CloneDirectory, repository.Name)
 
 		// Try to open repository, otherwise clone

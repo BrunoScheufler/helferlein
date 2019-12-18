@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -169,6 +170,9 @@ func watchRepository(ctx context.Context, options watchRepositoryOptions) error 
 				// Create cmd
 				stepCmd := strings.Split(step, " ")
 				cmd := exec.Command(stepCmd[0], stepCmd[1:]...)
+
+				// Set working directory to clone directory + repo name (e.g. .helferlein/<repo>)
+				cmd.Dir = filepath.Join(options.config.CloneDirectory, options.repoConfig.Name)
 
 				// Create stdout buffer and link to cmd
 				output := bytes.Buffer{}
