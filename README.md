@@ -4,9 +4,18 @@
 
 > A small but helpful tool to set up a continuously-running git repository watcher to build CI/CD pipelines in seconds
 
+## features
+
+- configurable poll-rate to keep in sync with upstream changes
+- support for concurrent watching and working with as many repositories as your system can handle
+
+## use cases
+
+If you ever wanted to continuously watch git repository changes without a webhook setup or a complete CI/CD solution, this will be for you. I've created helferlein to simplify deployment workflows to my personal infrastructure, basically a self-built and self-hosted CI solution without all the additional bells and whistles.
+
 ## installation
 
-Right now, there's no other way than to clone the repository and build the code by hand, but I'll add cross-compiled builds for all platforms and container images relatively soon!
+Since I went ahead and cross-compiled helferlein for all systems imaginable, you can go ahead and download the OS- and architecture-specific binary from the [release page](https://github.com/BrunoScheufler/helferlein/releases). You can also just clone and build helferlein for yourself, the only important part is to build the `cmd` package (not to be confused with go's internal cmd package!), since this will boot everything up for you.
 
 ## configuration
 
