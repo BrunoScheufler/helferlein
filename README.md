@@ -24,10 +24,8 @@ helferlein uses a YAML-based configuration to set up and manage repositories to 
 ```yaml
 # Fetch for updates every 10s
 fetchInterval: "10s"
-
 # Clone into .helferlein directory in current working directory
 cloneDirectory: .helferlein
-
 repositories:
   # Define "helferlein" repository to track
   - name: "helferlein"
@@ -35,7 +33,12 @@ repositories:
     cloneUrl: "https://github.com/BrunoScheufler/helferlein.git"
     # Select "master" branch
     branches:
-      - master
+      # React to pushes to the master branch
+      master:
+        # Run the following commands in order
+        steps:
+          - echo "Hooray, we've got changes 🎉"
+          - bash ./my-script.sh # commands are run in the cloned repository
 ```
 
 ## authentication

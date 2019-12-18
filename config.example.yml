@@ -9,4 +9,9 @@ repositories:
     cloneUrl: "https://github.com/BrunoScheufler/helferlein.git"
     # Select "master" branch
     branches:
-      - master
+      # React to pushes to the master branch
+      master:
+        # Run the following commands in order
+        steps:
+          - echo "Hooray, we've got changes 🎉"
+          - bash ./my-script.sh # commands are run in the cloned repository
