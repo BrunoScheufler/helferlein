@@ -1,11 +1,11 @@
 package worker
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -163,6 +163,8 @@ func watchRepository(ctx context.Context, options watchRepositoryOptions) error 
 
 			logrus.Infof("Pulled branch %q of repository %q with new content", branchName, options.repoConfig.Name)
 
+			start := time.Now()
+
 			// Execute branch steps
 			for i, step := range branchConfig.Steps {
 				logrus.Debugf("Running step %d of branch %q of repository %q", i+1, branchName, options.repoConfig.Name)
@@ -174,9 +176,9 @@ func watchRepository(ctx context.Context, options watchRepositoryOptions) error 
 				// Set working directory to clone directory + repo name (e.g. .helferlein/<repo>)
 				cmd.Dir = filepath.Join(options.config.CloneDirectory, options.repoConfig.Name)
 
-				// Create stdout buffer and link to cmd
-				output := bytes.Buffer{}
-				cmd.Stdout = &output
+				// Pipe stdout and stderr to helferlein's output
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
 
 				// Run command
 				err = cmd.Run()
@@ -184,8 +186,10 @@ func watchRepository(ctx context.Context, options watchRepositoryOptions) error 
 					return fmt.Errorf("could not run step %d of branch %q of repository %q: %w", i+1, branchName, options.repoConfig.Name, err)
 				}
 
-				logrus.Infof("Completed step %d of branch %q of repository %q: %s", i+1, branchName, options.repoConfig.Name, output.String())
+				logrus.Infof("Completed step %d of branch %q of repository %q", i+1, branchName, options.repoConfig.Name)
 			}
+
+			logrus.Infof("Done syncing repository %q in %s", options.repoConfig.Name, time.Since(start).String())
 		}
 
 		logrus.Debugf("Done refreshing repository %q", options.repoConfig.Name)
