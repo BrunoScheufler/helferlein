@@ -189,7 +189,7 @@ func watchRepository(ctx context.Context, options watchRepositoryOptions) error 
 				logrus.Infof("Completed step %d of branch %q of repository %q", i+1, branchName, options.repoConfig.Name)
 			}
 
-			logrus.Infof("Done syncing repository %q in %s", options.repoConfig.Name, time.Since(start).String())
+			logrus.Infof("Done syncing repository %q in %s (%s)", options.repoConfig.Name, time.Since(start).String(), time.Now().Format(time.RFC3339))
 		}
 
 		logrus.Debugf("Done refreshing repository %q", options.repoConfig.Name)
