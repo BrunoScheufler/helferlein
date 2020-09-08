@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/brunoscheufler/helferlein/worker"
 	"github.com/sirupsen/logrus"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 )
 
 func defaultConfig() (string, error) {
@@ -18,14 +21,15 @@ func defaultConfig() (string, error) {
 	return filepath.Join(pwd, "config.yml"), nil
 }
 
-func setupLogger(level string) error {
+func setupLogger(level string) (*logrus.Logger, error) {
 	parsedLevel, err := logrus.ParseLevel(level)
 	if err != nil {
-		return fmt.Errorf("could not parse log level %q: %w", level, err)
+		return nil, fmt.Errorf("could not parse log level %q: %w", level, err)
 	}
 
-	logrus.SetLevel(parsedLevel)
-	return nil
+	logger := logrus.New()
+	logger.SetLevel(parsedLevel)
+	return logger, nil
 }
 
 func main() {
@@ -47,20 +51,31 @@ func main() {
 	flag.Parse()
 
 	// Set up logger
-	err = setupLogger(*logLevel)
+	logger, err := setupLogger(*logLevel)
 	if err != nil {
 		logrus.Fatalf("Could not setup logger: %s", err.Error())
 	}
 
 	// Create and load config
 	config := &worker.Config{}
-	err = config.Load(*configFile)
+	err = config.LoadFromFile(*configFile)
 	if err != nil {
 		logrus.Fatalf("Could not load config: %s", err.Error())
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		logger.Infof("Received signal %s, shutting down..", sig.String())
+		cancel()
+	}()
+
 	// Start worker
-	err = worker.Start(config)
+	err = worker.Start(ctx, config, logger)
 	if err != nil {
 		logrus.Fatalf("Failed to start up: %s", err.Error())
 	}
