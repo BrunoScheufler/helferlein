@@ -2,12 +2,12 @@
 
 ![Helferlein (Little Helper)](./media/helferlein.jpg)
 
-> A small but helpful tool to set up a continuously-running git repository watcher to build CI/CD pipelines in seconds
+> A small but helpful tool to set up a continuously-running, branch-based Git repository watcher to build CI/CD pipelines in seconds
 
 ## features
 
-- configurable poll-rate to keep in sync with upstream changes
-- support for concurrent watching and working with as many repositories as your system can handle
+- concurrent watching over as many projects as your system can handle
+- branches are tracked completely independently, so you can handle multiple tracks (e.g. `main`, `staging`) 
 
 ## use cases
 
@@ -19,55 +19,41 @@ Since I went ahead and cross-compiled helferlein for all systems imaginable, you
 
 ## configuration
 
-helferlein uses a YAML-based configuration to set up and manage repositories to watch and steps to run. An example configuration could look like this:
+helferlein uses a YAML-based [configuration](./worker/config.go) to set up and manage repositories to watch and steps to run. An example configuration could look like this:
 
 ```yaml
-# Fetch for updates every 10s
-fetchInterval: "10s"
-# Clone into .helferlein directory in current working directory
-cloneDirectory: .helferlein
-repositories:
-  # Define "helferlein" repository to track
-  - name: "helferlein"
-    # Use GitHub https clone URL
-    cloneUrl: "https://github.com/BrunoScheufler/helferlein.git"
-    # Select "master" branch
+# Clone repositories into .helferlein directory
+clone_directory: ".helferlein"
+projects:
+  helferlein:
+    # Check for updates every 10 secnods
+    fetch_interval: "10s"
+    clone_url: "https://github.com/BrunoScheufler/helferlein.git"
     branches:
-      # React to pushes to the master branch
-      master:
-        # Run the following commands in order
+      main:
         steps:
-          - echo "Hooray, we've got changes 🎉"
-          - bash ./my-script.sh # commands are run in the cloned repository
+          - echo "Hooray, changes! 🎉"
 ```
 
 ## authentication
 
-Although public repositories can be cloned without credentials, helferlein requires to either use a username/password combination or an access token to clone and fetch contents from repositories.
+While public repositories can be cloned without credentials, helferlein allows to supply use a username/password combination or an access token to clone and fetch contents from repositories with restricted access.
 
-Auth credentials can be added to the config or supplied as environment variables.
-
-### adding credentials to configuration
+Auth credentials can be added to the project configuration or supplied as environment variables.
 
 ```yaml
-auth:
-  # Either authenticate using access token
-  accessToken: <token>
-
-  # or using user/password
-  user: <user>
-  password: <password>
+projects:
+  my_project:
+    auth:
+      username: user # or HELFERLEIN_GIT_AUTH_USER
+      password: password # HELFERLEIN_GIT_AUTH_PASSWORD
 ```
 
-### supplying credentials as environment variables
-
-```bash
-# Add your access token like this
-export HELFERLEIN_GIT_AUTH_ACCESS_TOKEN=<token>
-
-# Or when using user/password
-export HELFERLEIN_GIT_AUTH_USER=<user>
-export HELFERLEIN_GIT_AUTH_PASSWORD=<password>
+```yaml
+projects:
+  my_project:
+    auth:
+      access_token: my_token # or HELFERLEIN_GIT_AUTH_ACCESS_TOKEN
 ```
 
 ## usage

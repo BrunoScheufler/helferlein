@@ -1,17 +1,11 @@
-# Fetch for updates every 10s
-fetchInterval: "10s"
-# Clone into .helferlein directory in current working directory
-cloneDirectory: .helferlein
-repositories:
-  # Define "helferlein" repository to track
-  - name: "helferlein"
-    # Use GitHub https clone URL
-    cloneUrl: "https://github.com/BrunoScheufler/helferlein.git"
-    # Select "master" branch
+# Clone repositories into .helferlein directory
+clone_directory: ".helferlein"
+projects:
+  helferlein:
+    # Check for updates every 10 secnods
+    fetch_interval: "10s"
+    clone_url: "https://github.com/BrunoScheufler/helferlein.git"
     branches:
-      # React to pushes to the master branch
-      master:
-        # Run the following commands in order
+      main:
         steps:
-          - echo "Hooray, we've got changes 🎉"
-          - bash ./my-script.sh # commands are run in the cloned repository
+          - echo "Hooray, changes! 🎉"

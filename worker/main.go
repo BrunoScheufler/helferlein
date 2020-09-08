@@ -2,18 +2,29 @@ package worker
 
 import (
 	"context"
+	"crypto/sha1"
+	"errors"
 	"fmt"
+	"github.com/go-git/go-git/v5"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/src-d/go-git.v4"
 	"os"
 	"path/filepath"
 	"time"
 )
 
-func Start(config *Config) error {
-	logrus.Infoln("Setting up configured repositories...")
+type ProjectRepository struct {
+	GitRepository *git.Repository
+	LocalPath     string
+}
 
-	ctx := context.Background()
+type Project struct {
+	Name         string
+	Config       ProjectConfig
+	Repositories map[string]*ProjectRepository
+}
+
+func Start(ctx context.Context, config *Config, logger *logrus.Logger) error {
+	logger.Infoln("Setting up configured repositories...")
 
 	// Create clone directory if it doesn't exist
 	_, err := os.Stat(config.CloneDirectory)
@@ -28,42 +39,62 @@ func Start(config *Config) error {
 		}
 	}
 
-	// Keep track of cloned repositories
-	clonedRepos := make([]*git.Repository, len(config.Repositories))
+	// Keep track of projects
+	projects := make([]*Project, 0)
 	cloneStart := time.Now()
 
-	// Clone non-existing repositories
-	for i, repository := range config.Repositories {
-		// Clone into clone directory + repository name (e.g. .helferlein/<repo>)
-		cloneTargetDir := filepath.Join(config.CloneDirectory, repository.Name)
+	// Clone non-existing project repositories
+	for projectName, projectConfig := range config.Projects {
+		repos := make(map[string]*ProjectRepository, len(projectConfig.Branches))
 
-		// Try to open repository, otherwise clone
-		localRepo, err := git.PlainOpen(cloneTargetDir)
-		if err != nil {
-			// If repository doesn't exist, clone it from the remote
-			if err == git.ErrRepositoryNotExists {
-				// Clone repository
-				clonedRepo, err := cloneRepository(ctx, repository, config, cloneTargetDir)
-				if err != nil {
-					return err
+		for branchName := range projectConfig.Branches {
+			nameHash := sha1.New()
+			nameHash.Write([]byte(projectName))
+			nameHash.Write([]byte(branchName))
+			generatedPath := fmt.Sprintf("%x", nameHash.Sum(nil))
+
+			// Clone into clone directory + repository name (e.g. .helferlein/<generated name>)
+			cloneTargetDir := filepath.Join(config.CloneDirectory, generatedPath)
+
+			// Try to open repository, otherwise clone
+			localRepo, err := git.PlainOpen(cloneTargetDir)
+			if err != nil {
+				// If repository doesn't exist, clone it from the remote
+				if errors.Is(err, git.ErrRepositoryNotExists) {
+					// Clone repository
+					clonedRepo, err := cloneProjectRepository(ctx, projectName, projectConfig, branchName, cloneTargetDir)
+					if err != nil {
+						return fmt.Errorf("could not clone repository for branch %q of project %q: %w", branchName, projectName, err)
+					}
+
+					repos[branchName] = &ProjectRepository{
+						GitRepository: clonedRepo,
+						LocalPath:     cloneTargetDir,
+					}
+
+					continue
+				} else {
+					return fmt.Errorf("could not open local repository for project: %q: %w", projectName, err)
 				}
+			}
 
-				clonedRepos[i] = clonedRepo
-				continue
-			} else {
-
-				return fmt.Errorf("could not open local repository: %q: %w", repository.Name, err)
+			repos[branchName] = &ProjectRepository{
+				GitRepository: localRepo,
+				LocalPath:     cloneTargetDir,
 			}
 		}
 
-		// Add local repo to active repository list
-		clonedRepos[i] = localRepo
+		projects = append(projects, &Project{
+			Name:         projectName,
+			Config:       projectConfig,
+			Repositories: repos,
+		})
 	}
 
-	logrus.Infof("Done cloning repositories in %s", time.Since(cloneStart).String())
+	logger.Infof("Done cloning repositories in %s", time.Since(cloneStart).String())
 
 	// Watch for changes
-	err = watchRepositories(ctx, config, clonedRepos)
+	err = watchProjects(ctx, projects, logger)
 	if err != nil {
 		return fmt.Errorf("could not watch repositories: %w", err)
 	}
