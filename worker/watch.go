@@ -112,18 +112,29 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 		return fmt.Errorf("could not get merged head for branch %q: %w", branchName, err)
 	}
 
+	previousCommit := currentHead.Hash().String()
+	nextCommit := mergedHead.Hash().String()
+
 	// Check if we really got new commits
-	if currentHead.Hash().String() == mergedHead.Hash().String() {
+	if previousCommit == nextCommit {
 		logger.Debugf(
 			"Skipping refresh triggers of branch %q since previous and new head don't differ: %q (prev), %q (new)",
 			branchName,
-			currentHead.Hash().String(),
-			mergedHead.Hash().String(),
+			previousCommit,
+			nextCommit,
 		)
 		return nil
 	}
 
-	logger.Infof("Pulled branch %q of project %q with new content", branchName, project.Name)
+	commonLogFields := logrus.Fields{
+		"Commit":  nextCommit,
+		"Branch":  branchName,
+		"Project": project.Name,
+	}
+
+	progressLogger := logger.WithFields(commonLogFields)
+
+	progressLogger.Infof("Pulled changes for branch %q", branchName)
 
 	start := time.Now()
 
@@ -133,7 +144,7 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 			return ctx.Err()
 		}
 
-		logger.Debugf("Running step %d of branch %q of project %q", i+1, branchName, project.Name)
+		progressLogger.Debugf("Running step %d of %d", i+1, len(branchConfig.Steps))
 
 		// Create cmd
 		stepCmd := strings.Split(step, " ")
@@ -152,10 +163,10 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 			return fmt.Errorf("could not run step %d of branch %q: %w", i+1, branchName, err)
 		}
 
-		logger.Infof("Completed step %d of branch %q of project %q", i+1, branchName, project.Name)
+		progressLogger.Infof("Completed step %d of %d", i+1, len(branchConfig.Steps))
 	}
 
-	logger.Infof("Done syncing branch %q of %q in %s (%s)", branchName, project.Name, time.Since(start).String(), time.Now().Format(time.RFC3339))
+	progressLogger.Infof("Done syncing branch in %s (%s)", time.Since(start).String(), time.Now().Format(time.RFC3339))
 
 	return nil
 }
