@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -88,9 +89,10 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 
 	// Pull remote changes
 	err = wt.PullContext(ctx, &git.PullOptions{
-		RemoteName:   "origin",
-		SingleBranch: true,
-		Auth:         configureAuth(project.Config),
+		RemoteName:    "origin",
+		ReferenceName: plumbing.NewBranchReferenceName(branchName),
+		SingleBranch:  true,
+		Auth:          configureAuth(project.Config),
 	})
 	if err != nil {
 		// Continue with next branch if there are no fetch changes
