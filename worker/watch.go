@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -160,7 +161,20 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 		// Run command
 		err = cmd.Run()
 		if err != nil {
-			return fmt.Errorf("could not run step %d of branch %q: %w", i+1, branchName, err)
+			// Perform hard reset to make sure any changes performed are undone
+			resetError := wt.Reset(&git.ResetOptions{Mode: git.HardReset})
+			if resetError != nil {
+				progressLogger.Errorf("failed to perform hard reset: %s", resetError.Error())
+			}
+
+			var exitError *exec.ExitError
+			if !errors.As(err, &exitError) {
+				return fmt.Errorf("could not run step %d of branch %q: %w", i+1, branchName, err)
+			}
+
+			// Don't continue executing subsequent steps
+			progressLogger.Errorf("step %d of branch %q failed with exit code %d", i+1, branchName, exitError.ExitCode())
+			break
 		}
 
 		progressLogger.Infof("Completed step %d of %d", i+1, len(branchConfig.Steps))
