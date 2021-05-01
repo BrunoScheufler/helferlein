@@ -2,13 +2,13 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"time"
 )
@@ -136,6 +136,10 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 
 	progressLogger.Infof("Pulled changes for branch %q", branchName)
 
+	return runSteps(ctx, progressLogger, repository, branchName, branchConfig, wt)
+}
+
+func runSteps(ctx context.Context, progressLogger *logrus.Entry, repository *ProjectRepository, branchName string, branchConfig BranchConfig, wt *git.Worktree) error {
 	start := time.Now()
 
 	// Execute branch steps
@@ -146,21 +150,22 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 
 		progressLogger.Debugf("Running step %d of %d", i+1, len(branchConfig.Steps))
 
-		// Create cmd
-		stepCmd := strings.Split(step, " ")
-		cmd := exec.Command(stepCmd[0], stepCmd[1:]...)
+		shouldContinue, err := runCommand(repository.LocalPath, step)
 
-		// Set working directory to clone directory + repo name (e.g. .helferlein/<repo>)
-		cmd.Dir = repository.LocalPath
+		if !shouldContinue {
+			// Perform hard reset to make sure any changes performed are undone
+			resetError := wt.Reset(&git.ResetOptions{Mode: git.HardReset})
+			if resetError != nil {
+				progressLogger.Errorf("failed to perform hard reset: %s", resetError.Error())
+			}
+		}
 
-		// Pipe stdout and stderr to helferlein's output
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		// Run command
-		err = cmd.Run()
 		if err != nil {
 			return fmt.Errorf("could not run step %d of branch %q: %w", i+1, branchName, err)
+		}
+
+		if !shouldContinue {
+			break
 		}
 
 		progressLogger.Infof("Completed step %d of %d", i+1, len(branchConfig.Steps))
@@ -169,4 +174,29 @@ func watchProjectBranch(ctx context.Context, logger *logrus.Logger, repository *
 	progressLogger.Infof("Done syncing branch in %s (%s)", time.Since(start).String(), time.Now().Format(time.RFC3339))
 
 	return nil
+}
+
+func runCommand(workDir string, command string) (bool, error) {
+	// Create cmd
+	cmd := exec.Command("bash", "-c", command)
+
+	// Set working directory to clone directory + repo name (e.g. .helferlein/<repo>)
+	cmd.Dir = workDir
+
+	// Pipe stdout and stderr to helferlein's output
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run command
+	err := cmd.Run()
+	if err != nil {
+		var exitError *exec.ExitError
+		if !errors.As(err, &exitError) {
+			return false, fmt.Errorf("could not run command: %w", err)
+		}
+
+		return false, nil
+	}
+
+	return true, nil
 }
